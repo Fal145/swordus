@@ -714,8 +714,7 @@ MonoBehaviour:
   moveMulti: 10
   sprintSpeed: 15
   acceleration: 7
-  jumpForce: 10
-  jumpCd: 0.25
+  jumpForce: 15
   airMulti: 0.4
   gndDrag: 10
   airDrag: 5

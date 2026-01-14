@@ -18,11 +18,8 @@ public class PlyerMovement : MonoBehaviour
 
     [Header("Jump")]
     public float jumpForce = 15f;
-    public float jumpCd;
     public float airMulti;
-    bool jumpable;
     
-
     [Header("Drag")]
     public float gndDrag = 6f;
     public float airDrag = 15f;
@@ -38,12 +35,9 @@ public class PlyerMovement : MonoBehaviour
     [SerializeField] KeyCode jumpKey = KeyCode.Space;
     [SerializeField] KeyCode sprintKey = KeyCode.LeftShift;
 
-
-
     float horizontalMovement;
     float verticalMovement;
     Vector3 moveDirection;
-
 
     private void Start()
     {
@@ -58,7 +52,12 @@ public class PlyerMovement : MonoBehaviour
         ControlSpeed();
 
         grounded = Physics.CheckSphere(gndPos.position, gndDistance, whatIsGnd);
-    }
+
+        if(Input.GetKey(jumpKey) && grounded)
+        {
+            Jump();
+        }
+    }   
 
     private void FixedUpdate()
     {
@@ -69,15 +68,6 @@ public class PlyerMovement : MonoBehaviour
     {
         horizontalMovement = Input.GetAxisRaw("Horizontal");
         verticalMovement = Input.GetAxisRaw("Vertical");
-
-        if(Input.GetKey(jumpKey) && grounded && jumpable)
-        {
-            jumpable = false;
-
-            Jump();
-
-            Invoke(nameof(ResetJump), jumpCd);
-        }
     }
 
     void MovePlayer()
@@ -109,14 +99,12 @@ public class PlyerMovement : MonoBehaviour
 
     void Jump()
     {
-        rb.linearVelocity = new Vector3(rb.linearVelocity.x, 0, rb.linearVelocity.z);
-
-        rb.AddForce(transform.up * jumpForce, ForceMode.Impulse);
-    }
-
-    void ResetJump()
-    {
-        jumpable = true;
+        if (grounded)
+        {
+            rb.linearVelocity = new Vector3(rb.linearVelocity.x, 0, rb.linearVelocity.z);
+            rb.AddForce(transform.up * jumpForce, ForceMode.Impulse);
+        }
+        
     }
 
     void ControlDrag()
