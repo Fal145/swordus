@@ -2,6 +2,7 @@ using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
+using UnityEngine.Timeline;
 
 public class PlyerMovement : MonoBehaviour
 {
@@ -19,6 +20,13 @@ public class PlyerMovement : MonoBehaviour
     [Header("Jump")]
     public float jumpForce = 15f;
     public float airMulti;
+    public float jumpCd;
+    bool jumpable;
+
+    [Header("Crouching")]
+    public float crouchSpeed;
+    public float crouchYScale;
+    float startYScale;
     
     [Header("Drag")]
     public float gndDrag = 6f;
@@ -34,15 +42,28 @@ public class PlyerMovement : MonoBehaviour
     [Header("Keybinds")]
     [SerializeField] KeyCode jumpKey = KeyCode.Space;
     [SerializeField] KeyCode sprintKey = KeyCode.LeftShift;
-
+    [SerializeField] KeyCode crouchKey = KeyCode.LeftControl;
+ 
     float horizontalMovement;
     float verticalMovement;
     Vector3 moveDirection;
+
+    public MovementState state;
+    public enum MovementState
+    {
+        walking,
+        sprinting,
+        crouching,
+        air
+    }
 
     private void Start()
     {
         rb = GetComponent<Rigidbody>();
         rb.freezeRotation = true;
+        startYScale = transform.localScale.y;
+
+        jumpable = true;
     }
 
     private void Update()
@@ -50,13 +71,9 @@ public class PlyerMovement : MonoBehaviour
         MyInput();
         ControlDrag();
         ControlSpeed();
+        StateHandler();
 
         grounded = Physics.CheckSphere(gndPos.position, gndDistance, whatIsGnd);
-
-        if(Input.GetKey(jumpKey) && grounded)
-        {
-            Jump();
-        }
     }   
 
     private void FixedUpdate()
@@ -68,6 +85,48 @@ public class PlyerMovement : MonoBehaviour
     {
         horizontalMovement = Input.GetAxisRaw("Horizontal");
         verticalMovement = Input.GetAxisRaw("Vertical");
+
+        if(Input.GetKey(jumpKey) && grounded && jumpable)
+        {
+            jumpable = false;
+
+            Jump();
+            Invoke(nameof(ResetJump), jumpCd);
+        }
+
+        if (Input.GetKeyDown(crouchKey))
+        {
+            transform.localScale = new Vector3(transform.localScale.x, crouchYScale, transform.localScale.z);
+            rb.AddForce(Vector3.down * 5f, ForceMode.Impulse);
+        }
+        if (Input.GetKeyUp(crouchKey))
+        {
+            transform.localScale = new Vector3(transform.localScale.x, startYScale, transform.localScale.z);
+        }
+    }
+
+    void StateHandler()
+    {
+        if (Input.GetKey(crouchKey))
+        {
+            state = MovementState.crouching;
+            moveSpeed = Mathf.Lerp(moveSpeed, crouchSpeed, acceleration);
+        }
+        else if(Input.GetKey(sprintKey) && grounded)
+        {
+            state = MovementState.sprinting;
+            moveSpeed = Mathf.Lerp(moveSpeed, sprintSpeed, acceleration);
+        }
+        else if (grounded)
+        {
+            state = MovementState.walking;
+            moveSpeed = Mathf.Lerp(moveSpeed, walkSpeed, acceleration);
+        }
+        else
+        {
+            state = MovementState.air;
+        }
+        
     }
 
     void MovePlayer()
@@ -87,13 +146,11 @@ public class PlyerMovement : MonoBehaviour
 
     void ControlSpeed()
     {
-        if(grounded && Input.GetKey(sprintKey))
+        Vector3 flatVel = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
+        if(flatVel.magnitude > moveSpeed)
         {
-            moveSpeed = Mathf.Lerp(moveSpeed, sprintSpeed, acceleration * Time.deltaTime);
-        }
-        else
-        {
-            moveSpeed = Mathf.Lerp(moveSpeed, walkSpeed, acceleration * Time.deltaTime);
+            Vector3 limitedVel = flatVel.normalized * moveSpeed;
+            rb.linearVelocity = new Vector3(limitedVel.x, rb.linearVelocity.y, limitedVel.z);
         }
     }
 
@@ -101,10 +158,15 @@ public class PlyerMovement : MonoBehaviour
     {
         if (grounded)
         {
-            rb.linearVelocity = new Vector3(rb.linearVelocity.x, 0, rb.linearVelocity.z);
+            rb.linearVelocity = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
             rb.AddForce(transform.up * jumpForce, ForceMode.Impulse);
         }
         
+    }
+
+    void ResetJump()
+    {
+        jumpable = true;
     }
 
     void ControlDrag()
